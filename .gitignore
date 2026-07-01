@@ -1,0 +1,15 @@
+#dependencies
+/node_modules
+
+#enviroment variables
+.env
+.env.local
+.env..production
+
+#logs
+*.log
+npm-debug.log*
+
+# Docker volumes
+mongodb_data
+redis_data
