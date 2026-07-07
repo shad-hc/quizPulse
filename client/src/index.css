@@ -1,0 +1,18 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #0f0f1a;
+  color: #f1f5f9;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font-family: inherit; }
+input, textarea, select { font-family: inherit; color: inherit; }
+textarea { resize: vertical; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+input::placeholder, textarea::placeholder { color: #475569; }
