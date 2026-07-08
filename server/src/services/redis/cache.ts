@@ -1,6 +1,6 @@
 import { redis, KEYS, CACHE_TTL } from './redis';
-import Quiz, { IQuiz } from '../models/Quiz';
-import Question, { IQuestion } from '../models/Question';
+import Quiz, { IQuiz } from '../../models/Quiz';
+import Question, { IQuestion } from '../../models/Question';
 
 export async function getCachedQuiz(quizId: string): Promise<IQuiz | null> {
   const cached = await redis.get(KEYS.quiz(quizId));

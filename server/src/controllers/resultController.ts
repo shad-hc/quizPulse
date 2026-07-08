@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import Result from '../models/Result';
 import User from '../models/User';
-import { getTopLeaderboard } from '../services/redis';
+import { getTopLeaderboard } from '../services/redis/redis';
 import { AuthRequest } from '../middleware/auth';
 
 export async function getQuizResults(req: AuthRequest, res: Response): Promise<void> {

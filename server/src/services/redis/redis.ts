@@ -2,16 +2,25 @@ import Redis from 'ioredis';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
-export const redis = new Redis(REDIS_URL, {
-  maxRetriesPerRequest: 3,
-  lazyConnect: true,
+export const redis = new Redis({
+  host : process.env.REDIS_HOST || "localhost",
+  port : Number(process.env.REDIS_PORT) || 6379,
+  maxRetriesPerRequest: 3, // max retries per request
+  lazyConnect: true, // open connection on first command
+  enableOfflineQueue : false, // store commands in offline queue when connection fails
+  enableReadyCheck : true, 
+  keepAlive : 30000 
 });
 
-export const redisSub = new Redis(REDIS_URL, {
-  maxRetriesPerRequest: 3,
-  lazyConnect: true,
+export const redisSub = new Redis({
+  host : process.env.REDIS_HOST || "localhost",
+  port : Number(process.env.REDIS_PORT) || 6379,
+  maxRetriesPerRequest: 3, 
+  lazyConnect: true, 
+  enableOfflineQueue : false, 
+  enableReadyCheck : true, 
+  keepAlive : 30000
 });
 
 redis.on('connect', () => console.log('[Redis] publisher connected'));
@@ -58,9 +67,11 @@ export async function deleteRoomState(quizId: string): Promise<void> {
 // ─── Leaderboard helpers ─────────────────────────────────────────────────────
 
 export async function updateLeaderboard(quizId: string, userId: string, score: number): Promise<void> {
-  await redis.zadd(KEYS.leaderboard(quizId), 'NX', 0, userId); // ensure member exists
-  await redis.zincrby(KEYS.leaderboard(quizId), score, userId);
-  await redis.expire(KEYS.leaderboard(quizId), CACHE_TTL * 6);
+  const pipeline = redis.pipeline();
+  pipeline.zadd(KEYS.leaderboard(quizId), 'NX', 0, userId); // ensure member exists
+  pipeline.zincrby(KEYS.leaderboard(quizId), score, userId);
+  pipeline.expire(KEYS.leaderboard(quizId), CACHE_TTL * 6);
+  await pipeline.exec();
 }
 
 export async function initLeaderboardMember(quizId: string, userId: string): Promise<void> {

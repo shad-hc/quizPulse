@@ -11,8 +11,8 @@ import {
   hasUserAnswered,
   markUserAnswered,
   deleteRoomState,
-} from '../services/redis';
-import { getCachedQuestions } from '../services/cache';
+} from '../services/redis/redis';
+import { getCachedQuestions } from '../services/redis/cache';
 import Quiz from '../models/Quiz';
 import Result from '../models/Result';
 import { IAnswerRecord } from '../models/Result';

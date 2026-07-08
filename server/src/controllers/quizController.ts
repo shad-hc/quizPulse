@@ -3,8 +3,8 @@ import mongoose from 'mongoose';
 import Quiz from '../models/Quiz';
 import Question from '../models/Question';
 import { AuthRequest } from '../middleware/auth';
-import { getCachedQuiz, getCachedQuestions, invalidateQuizCache } from '../services/cache';
-import { setRoomState, deleteRoomState } from '../services/redis';
+import { getCachedQuiz, getCachedQuestions, invalidateQuizCache } from '../services/redis/cache';
+import { setRoomState, deleteRoomState } from '../services/redis/redis';
 
 export async function createQuiz(req: AuthRequest, res: Response): Promise<void> {
   try {
