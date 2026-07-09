@@ -10,7 +10,8 @@
 *.log
 npm-debug.log*
 
-
+#builds
+dist/
 
 # Docker volumes
 mongodb_data
