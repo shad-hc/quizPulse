@@ -1,5 +1,5 @@
 #dependencies
-/node_modules
+node_modules/
 
 #enviroment variables
 .env
@@ -13,3 +13,6 @@ npm-debug.log*
 # Docker volumes
 mongodb_data
 redis_data
+
+#miscllaneous
+.DS_STORE
