@@ -28,7 +28,7 @@ redis.on('error', (err) => console.error('[Redis] publisher error:', err.message
 redisSub.on('connect', () => console.log('[Redis] subscriber connected'));
 redisSub.on('error', (err) => console.error('[Redis] subscriber error:', err.message));
 
-// ─── Key helpers ────────────────────────────────────────────────────────────
+
 
 export const KEYS = {
   quiz: (id: string) => `quiz:${id}`,
@@ -41,7 +41,7 @@ export const KEYS = {
 
 export const CACHE_TTL = 60 * 60; // 1 hour
 
-// ─── Room state helpers ──────────────────────────────────────────────────────
+
 
 export interface RoomState {
   quizId: string;
@@ -64,7 +64,6 @@ export async function deleteRoomState(quizId: string): Promise<void> {
   await redis.del(KEYS.roomState(quizId));
 }
 
-// ─── Leaderboard helpers ─────────────────────────────────────────────────────
 
 export async function updateLeaderboard(quizId: string, userId: string, score: number): Promise<void> {
   const pipeline = redis.pipeline();
@@ -103,7 +102,7 @@ export async function getUserRank(quizId: string, userId: string): Promise<numbe
   return rank !== null ? rank + 1 : -1;
 }
 
-// ─── Answer dedup ─────────────────────────────────────────────────────────────
+
 
 export async function hasUserAnswered(quizId: string, qIndex: number, userId: string): Promise<boolean> {
   const result = await redis.sismember(KEYS.answered(quizId, qIndex), userId);

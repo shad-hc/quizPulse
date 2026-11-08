@@ -1,12 +1,21 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
+import {
+  apiCreated,
+  apiBadRequest,
+  apiNotFound,
+  apiServerError,
+  apiSuccess,
+  apiUnauthorized
+} from "../utils/apiResponse"
 import { signAccessToken, signRefreshToken, verifyRefreshToken, TokenPayload } from '../utils/jwt';
+import { AuthRequest } from '../middleware/auth';
 
 export async function signup(req: Request, res: Response): Promise<void> {
   try {
     const { email, name, password, role } = req.body;
     if (!email || !name || !password) {
-      res.status(400).json({ error: 'email, name, and password are required' });
+      apiBadRequest(res,'email, name, and password are required');
       return;
     }
 
@@ -21,13 +30,17 @@ export async function signup(req: Request, res: Response): Promise<void> {
     const user = await User.create({ email, name, password, role: safeRole });
 
     const payload: TokenPayload = { userId: String(user._id), role: user.role, email: user.email };
-    res.status(201).json({
+
+    apiCreated(res, 'Signedup Succesfully', {
       user,
       accessToken: signAccessToken(payload),
       refreshToken: signRefreshToken(payload),
     });
+      
   } catch (err) {
-    res.status(500).json({ error: 'Signup failed', detail: String(err) });
+    apiServerError(res, 'Signup failed',{
+      error : String(err)
+    })
   }
 }
 
@@ -35,24 +48,27 @@ export async function login(req: Request, res: Response): Promise<void> {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      res.status(400).json({ error: 'email and password are required' });
+      apiBadRequest(res,'email and password are required');
       return;
     }
 
     const user = await User.findOne({ email });
     if (!user || !(await user.comparePassword(password))) {
-      res.status(401).json({ error: 'Invalid credentials' });
+      apiUnauthorized(res,401,'Invalid Credentials');
       return;
     }
 
     const payload: TokenPayload = { userId: String(user._id), role: user.role, email: user.email };
-    res.json({
+  
+    apiSuccess(res,'loggedIn Succesfully',{
       user,
       accessToken: signAccessToken(payload),
-      refreshToken: signRefreshToken(payload),
-    });
+      refreshToken: signRefreshToken(payload)
+    })
   } catch (err) {
-    res.status(500).json({ error: 'Login failed', detail: String(err) });
+    apiServerError(res,'login failed', {
+      error: String(err)
+    })
   }
 }
 
@@ -60,30 +76,30 @@ export async function refresh(req: Request, res: Response): Promise<void> {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) {
-      res.status(400).json({ error: 'refreshToken is required' });
+      apiBadRequest(res,'refreshToken is required');
       return;
     }
 
     const payload = verifyRefreshToken(refreshToken);
     const user = await User.findById(payload.userId);
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      apiNotFound(res,'User not found');
       return;
     }
 
     const newPayload: TokenPayload = { userId: String(user._id), role: user.role, email: user.email };
-    res.json({
+  
+    apiSuccess(res,'Success',{
       accessToken: signAccessToken(newPayload),
       refreshToken: signRefreshToken(newPayload),
-    });
+    })
   } catch {
-    res.status(401).json({ error: 'Invalid or expired refresh token' });
+    apiUnauthorized(res,401,'Invalid or expired refresh token');
   }
 }
 
-export async function getMe(req: Request, res: Response): Promise<void> {
+export async function getMe(req: AuthRequest, res: Response): Promise<void> {
   try {
-    // @ts-ignore
     const user = await User.findById(req.user?.userId).select('-password');
     if (!user) { res.status(404).json({ error: 'User not found' }); return; }
     res.json({ user });

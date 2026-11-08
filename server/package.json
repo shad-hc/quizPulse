@@ -2,7 +2,7 @@
   "name": "quiz-platform-server",
   "version": "1.0.0",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "npx tsc -b && node dist/index.js",
     "build": "tsc",
     "start": "node dist/index.js"
   },

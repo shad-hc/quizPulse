@@ -12,22 +12,22 @@ import resultRoutes from './routes/results';
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// ─── Middleware ───────────────────────────────────────────────────────────────
+
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'] }));
 app.use(express.json({ limit: '2mb' }));
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
+
 app.use('/api/auth', authRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/results',quizRoutes);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 
-// ─── HTTP server ──────────────────────────────────────────────────────────────
+
 const server = http.createServer(app);
 setupWebSocketServer(server);
 
-// ─── Startup ──────────────────────────────────────────────────────────────────
+
 async function start() {
   try {
     await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/quizplatform');
