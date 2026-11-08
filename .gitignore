@@ -10,6 +10,13 @@ node_modules/
 *.log
 npm-debug.log*
 
+#builds-info
+./tsconfig.buildinfo
+
+#build
+dist/
+
+
 # Docker volumes
 mongodb_data
 redis_data
