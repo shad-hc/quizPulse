@@ -3,6 +3,7 @@ import Result from '../models/Result';
 import User from '../models/User';
 import { getTopLeaderboard } from '../services/redis/redis';
 import { AuthRequest } from '../middleware/auth';
+import { apiSuccess,apiServerError,apiUnauthorized, apiNotFound, apiForbidden } from '../utils/apiResponse';
 
 export async function getQuizResults(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -13,9 +14,14 @@ export async function getQuizResults(req: AuthRequest, res: Response): Promise<v
       .lean();
 
     const leaderboard = await getTopLeaderboard(quizId, 50);
-    res.json({ results, leaderboard });
+    apiSuccess(res,'success',{
+      results,
+      leaderboard
+    })
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    apiServerError(res,'Internal Server Error',{
+      error: String(err)
+    })
   }
 }
 
@@ -25,17 +31,26 @@ export async function getUserResult(req: AuthRequest, res: Response): Promise<vo
 
     // Users can only see their own results unless admin/organizer
     if (req.user!.role === 'user' && req.user!.userId !== userId) {
-      res.status(403).json({ error: 'Forbidden' }); return;
+      apiForbidden(res);
+      return;
     }
 
     const result = await Result.findOne({ quizId, userId })
       .populate('userId', 'name email')
       .lean();
 
-    if (!result) { res.status(404).json({ error: 'Result not found' }); return; }
-    res.json({ result });
+     if(!result){
+      apiNotFound(res,'Result not found');
+      return;
+     }
+
+   apiSuccess(res,'success',{
+    result
+   })
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+   apiServerError(res,'Internal Server Error',{
+      error: String(err)
+    })
   }
 }
 
@@ -45,8 +60,12 @@ export async function getMyResults(req: AuthRequest, res: Response): Promise<voi
       .populate('quizId', 'title')
       .sort({ createdAt: -1 })
       .lean();
-    res.json({ results });
+    apiSuccess(res,'success',{
+      results
+    })
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    apiServerError(res,'Internal Server Error',{
+      error: String(err)
+    })
   }
 }

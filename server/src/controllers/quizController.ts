@@ -5,12 +5,13 @@ import Question from '../models/Question';
 import { AuthRequest } from '../middleware/auth';
 import { getCachedQuiz, getCachedQuestions, invalidateQuizCache } from '../services/redis/cache';
 import { setRoomState, deleteRoomState } from '../services/redis/redis';
+import { apiBadRequest, apiCreated, apiForbidden, apiServerError, apiSuccess, apiUnauthorized } from '../utils/apiResponse';
 
 export async function createQuiz(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { title, description, questions } = req.body;
     if (!title || !questions?.length) {
-      res.status(400).json({ error: 'title and at least one question required' });
+      apiBadRequest(res,'title and atleast one question required');
       return;
     }
 
@@ -31,10 +32,15 @@ export async function createQuiz(req: AuthRequest, res: Response): Promise<void>
         order: i,
       }))
     );
-
-    res.status(201).json({ quiz, questions: questionDocs });
+    
+    apiCreated(res,'quiz created successfully', {
+      quiz,
+      questions: questionDocs
+    })
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    apiServerError(res,'Internal Server Error',{
+      error: String(err)
+    })
   }
 }
 
@@ -51,7 +57,9 @@ export async function listQuizzes(req: AuthRequest, res: Response): Promise<void
       .lean();
     res.json({ quizzes });
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    apiServerError(res,'Internal Server Error',{
+        error: String(err)
+        })
   }
 }
 
@@ -67,9 +75,15 @@ export async function getQuiz(req: AuthRequest, res: Response): Promise<void> {
       ? questions.map((q: any) => ({ ...q, correctOptionIndex: undefined }))
       : questions;
 
-    res.json({ quiz, questions: sanitized });
+    // res.json({ quiz, questions: sanitized });
+    apiSuccess(res,'Success',{
+      quiz: questions,
+      questions: sanitized
+    })
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    apiServerError(res,'Internal Server Error',{
+      error: String(err)
+    })
   }
 }
 
@@ -80,7 +94,7 @@ export async function startQuiz(req: AuthRequest, res: Response): Promise<void> 
     if (!quiz) { res.status(404).json({ error: 'Quiz not found' }); return; }
 
     if (String(quiz.hostId) !== req.user!.userId && req.user!.role !== 'admin') {
-      res.status(403).json({ error: 'Not authorized to start this quiz' });
+      apiUnauthorized(res,403,'Not authorized to start this quiz');
       return;
     }
     if (quiz.status !== 'draft') {
@@ -105,7 +119,9 @@ export async function startQuiz(req: AuthRequest, res: Response): Promise<void> 
 
     res.json({ quiz, message: 'Quiz started — open the WebSocket room' });
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    apiServerError(res,'Internal Server Error',{
+      error: String(err)
+    })
   }
 }
 
@@ -116,7 +132,8 @@ export async function endQuiz(req: AuthRequest, res: Response): Promise<void> {
     if (!quiz) { res.status(404).json({ error: 'Quiz not found' }); return; }
 
     if (String(quiz.hostId) !== req.user!.userId && req.user!.role !== 'admin') {
-      res.status(403).json({ error: 'Not authorized' }); return;
+      apiUnauthorized(res,403,'Not authorized');
+      return;
     }
 
     quiz.status = 'ended';
@@ -125,9 +142,14 @@ export async function endQuiz(req: AuthRequest, res: Response): Promise<void> {
     await invalidateQuizCache(id);
     await deleteRoomState(id);
 
-    res.json({ quiz, message: 'Quiz ended' });
+    // res.json({ quiz, message: 'Quiz ended' });
+    apiSuccess(res,'Quiz ended',{
+      quiz
+    })
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    apiServerError(res,'Internal Server Error',{
+      error: String(err)
+    })
   }
 }
 
@@ -137,10 +159,12 @@ export async function updateQuiz(req: AuthRequest, res: Response): Promise<void>
     const quiz = await Quiz.findById(id);
     if (!quiz) { res.status(404).json({ error: 'Quiz not found' }); return; }
     if (String(quiz.hostId) !== req.user!.userId && req.user!.role !== 'admin') {
-      res.status(403).json({ error: 'Not authorized' }); return;
+      apiUnauthorized(res,403,'Unauthorized');
+      return;
     }
     if (quiz.status !== 'draft') {
-      res.status(400).json({ error: 'Cannot edit an active or ended quiz' }); return;
+      apiForbidden(res,'Cannot edit an active or ended quiz');
+      return;
     }
 
     const { title, description } = req.body;
@@ -148,7 +172,9 @@ export async function updateQuiz(req: AuthRequest, res: Response): Promise<void>
     if (description !== undefined) quiz.description = description;
     await quiz.save();
     await invalidateQuizCache(id);
-    res.json({ quiz });
+    apiSuccess(res,'success',{
+      quiz
+    })
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
