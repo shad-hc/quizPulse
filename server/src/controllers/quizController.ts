@@ -77,7 +77,7 @@ export async function getQuiz(req: AuthRequest, res: Response): Promise<void> {
 
     // res.json({ quiz, questions: sanitized });
     apiSuccess(res,'Success',{
-      quiz: questions,
+      quiz,
       questions: sanitized
     })
   } catch (err) {

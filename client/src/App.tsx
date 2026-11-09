@@ -22,9 +22,8 @@ function AppRoutes() {
 
   if (loading) {
     return (
-      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center',
-        background:'#0f0f1a', color:'#a78bfa', fontSize:24, fontWeight:800 }}>
-        ⚡ QuizPulse
+      <div className="splash">
+        <span className="brand"><span className="brand-mark" />QuizPulse</span>
       </div>
     );
   }

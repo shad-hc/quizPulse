@@ -1,13 +1,8 @@
 import React, { useState } from 'react';
-import api from '../services/api';
+import api, { getErrorMessage } from '../services/api';
+import type { NewQuestion } from '../types/api';
 
-interface Question {
-  text: string;
-  options: string[];
-  correctOptionIndex: number;
-  points: number;
-  timeLimitSeconds: number;
-}
+type Question = NewQuestion;
 
 interface Props { onNavigate: (page: string) => void; }
 
@@ -22,9 +17,9 @@ export default function CreateQuizPage({ onNavigate }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const updateQ = (i: number, field: keyof Question, value: unknown) => {
+  const updateQ = <K extends keyof Question>(i: number, field: K, value: Question[K]) => {
     const next = [...questions];
-    (next[i] as any)[field] = value;
+    next[i] = { ...next[i], [field]: value };
     setQuestions(next);
   };
 
@@ -60,122 +55,96 @@ export default function CreateQuizPage({ onNavigate }: Props) {
     try {
       await api.post('/quizzes', { title, description, questions });
       onNavigate('home');
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(getErrorMessage(e, 'Failed to save quiz')); }
     finally { setSaving(false); }
   };
 
   return (
-    <div style={styles.wrap}>
-      <div style={styles.inner}>
-        <div style={styles.topBar}>
-          <button style={styles.back} onClick={() => onNavigate('home')}>← Back</button>
-          <h1 style={styles.heading}>Create New Quiz</h1>
+    <div className="app">
+      <main className="page page--narrow">
+        <div className="page-head">
+          <button className="btn btn-ghost btn-sm" onClick={() => onNavigate('home')}>← Back</button>
+          <h1 className="page-title">New quiz</h1>
         </div>
 
-        <div style={styles.section}>
-          <label style={styles.label}>Quiz Title *</label>
-          <input style={styles.input} value={title} onChange={e => setTitle(e.target.value)}
-            placeholder="e.g. JavaScript Fundamentals" />
-          <label style={styles.label}>Description</label>
-          <textarea style={{ ...styles.input, height: 70 }} value={description}
-            onChange={e => setDescription(e.target.value)} placeholder="Optional description…" />
+        <div className="stack">
+          <div className="field">
+            <label className="label" htmlFor="quiz-title">Title</label>
+            <input id="quiz-title" className="input" value={title} onChange={e => setTitle(e.target.value)}
+              placeholder="e.g. JavaScript Fundamentals" />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="quiz-desc">
+              Description <span className="label-hint">· optional</span>
+            </label>
+            <textarea id="quiz-desc" className="input" value={description}
+              onChange={e => setDescription(e.target.value)} placeholder="What is this quiz about?" />
+          </div>
         </div>
 
-        <h2 style={styles.subHeading}>Questions ({questions.length})</h2>
+        <div className="section-head">
+          <h2 className="section-title">Questions</h2>
+          <span className="muted num" style={{ fontSize: 13 }}>{questions.length} total</span>
+        </div>
 
         {questions.map((q, qi) => (
-          <div key={qi} style={styles.qCard}>
-            <div style={styles.qHeader}>
-              <span style={styles.qNum}>Q{qi + 1}</span>
-              <div style={styles.qMeta}>
-                <label style={styles.smallLabel}>Points</label>
-                <input style={styles.smallInput} type="number" value={q.points} min={1}
+          <div key={qi} className="card q-card">
+            <div className="q-head">
+              <span className="q-num">QUESTION {qi + 1}</span>
+              <div className="q-meta">
+                <label className="label" htmlFor={`pts-${qi}`}>Points</label>
+                <input id={`pts-${qi}`} className="input input-sm" type="number" value={q.points} min={1}
                   onChange={e => updateQ(qi, 'points', Number(e.target.value))} />
-                <label style={styles.smallLabel}>Seconds</label>
-                <input style={styles.smallInput} type="number" value={q.timeLimitSeconds} min={5}
+                <label className="label" htmlFor={`sec-${qi}`}>Seconds</label>
+                <input id={`sec-${qi}`} className="input input-sm" type="number" value={q.timeLimitSeconds} min={5}
                   onChange={e => updateQ(qi, 'timeLimitSeconds', Number(e.target.value))} />
                 {questions.length > 1 && (
-                  <button style={styles.removeBtn}
+                  <button className="btn btn-icon" title="Remove question" aria-label={`Remove question ${qi + 1}`}
                     onClick={() => setQuestions(questions.filter((_, i) => i !== qi))}>✕</button>
                 )}
               </div>
             </div>
 
-            <textarea style={{ ...styles.input, marginBottom: 14 }} value={q.text}
+            <textarea className="input" value={q.text}
               onChange={e => updateQ(qi, 'text', e.target.value)}
-              placeholder="Question text…" rows={2} />
+              placeholder="Type your question…" rows={2} />
 
-            <div style={styles.optionsGrid}>
+            <div className="option-list">
               {q.options.map((opt, oi) => (
-                <div key={oi} style={styles.optRow}>
-                  <input type="radio" checked={q.correctOptionIndex === oi}
+                <div key={oi} className="option-row">
+                  <input type="radio" name={`correct-${qi}`} checked={q.correctOptionIndex === oi}
+                    aria-label={`Mark option ${oi + 1} as correct`}
                     onChange={() => updateQ(qi, 'correctOptionIndex', oi)} />
-                  <input style={{ ...styles.input, flex: 1, marginBottom: 0 }} value={opt}
+                  <input className="input" value={opt}
                     onChange={e => updateOption(qi, oi, e.target.value)}
                     placeholder={`Option ${oi + 1}`} />
                   {q.options.length > 2 && (
-                    <button style={styles.removeOpt} onClick={() => removeOption(qi, oi)}>✕</button>
+                    <button className="btn btn-icon" aria-label={`Remove option ${oi + 1}`}
+                      onClick={() => removeOption(qi, oi)}>✕</button>
                   )}
                 </div>
               ))}
             </div>
             {q.options.length < 6 && (
-              <button style={styles.addOpt} onClick={() => addOption(qi)}>+ Add Option</button>
+              <button className="btn btn-dashed btn-sm" onClick={() => addOption(qi)}>+ Add option</button>
             )}
-            <div style={styles.correctNote}>
-              ✅ Correct: Option {q.correctOptionIndex + 1}
-            </div>
+            <div className="correct-note">Correct answer: Option {q.correctOptionIndex + 1}</div>
           </div>
         ))}
 
-        <button style={styles.addQ} onClick={() => setQuestions([...questions, emptyQ()])}>
-          + Add Question
+        <button className="btn btn-dashed btn-block btn-lg" style={{ marginBottom: 32 }}
+          onClick={() => setQuestions([...questions, emptyQ()])}>
+          + Add question
         </button>
 
-        {error && <div style={styles.error}>{error}</div>}
+        <hr className="divider" style={{ marginTop: 0 }} />
 
-        <button style={styles.save} onClick={submit} disabled={saving}>
-          {saving ? 'Saving…' : '💾 Save Quiz'}
+        {error && <div className="form-error" role="alert" style={{ marginBottom: 16 }}>{error}</div>}
+
+        <button className="btn btn-primary btn-lg btn-block" onClick={submit} disabled={saving}>
+          {saving ? 'Saving…' : 'Save quiz'}
         </button>
-      </div>
+      </main>
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  wrap: { minHeight:'100vh', background:'#0f0f1a', color:'#f1f5f9', paddingBottom:80 },
-  inner: { maxWidth:760, margin:'0 auto', padding:'32px 24px' },
-  topBar: { display:'flex', alignItems:'center', gap:16, marginBottom:28 },
-  back: { background:'transparent', border:'1px solid rgba(255,255,255,0.15)',
-    color:'#94a3b8', padding:'8px 16px', borderRadius:8, cursor:'pointer', fontSize:13 },
-  heading: { fontSize:26, fontWeight:800, margin:0, letterSpacing:-1 },
-  subHeading: { fontSize:18, fontWeight:700, margin:'28px 0 16px', color:'#a78bfa' },
-  section: { display:'flex', flexDirection:'column', gap:10, marginBottom:8 },
-  label: { fontSize:12, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:.5 },
-  input: { padding:'11px 14px', borderRadius:10, border:'1px solid rgba(255,255,255,0.1)',
-    background:'rgba(255,255,255,0.05)', color:'#f1f5f9', fontSize:14,
-    outline:'none', width:'100%', boxSizing:'border-box' as const, resize:'vertical' as const },
-  qCard: { background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)',
-    borderRadius:14, padding:20, marginBottom:16 },
-  qHeader: { display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 },
-  qNum: { fontSize:18, fontWeight:800, color:'#a78bfa' },
-  qMeta: { display:'flex', alignItems:'center', gap:8 },
-  smallLabel: { fontSize:11, color:'#64748b' },
-  smallInput: { width:60, padding:'6px 8px', borderRadius:6,
-    border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.05)',
-    color:'#f1f5f9', fontSize:13 },
-  removeBtn: { background:'#7f1d1d', border:'none', color:'#fca5a5',
-    borderRadius:6, padding:'6px 10px', cursor:'pointer', fontSize:12 },
-  optionsGrid: { display:'flex', flexDirection:'column', gap:8, marginBottom:10 },
-  optRow: { display:'flex', alignItems:'center', gap:10 },
-  removeOpt: { background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', fontSize:16 },
-  addOpt: { background:'transparent', border:'1px dashed rgba(255,255,255,0.2)',
-    color:'#94a3b8', padding:'7px 14px', borderRadius:8, cursor:'pointer', fontSize:12, marginBottom:10 },
-  correctNote: { fontSize:12, color:'#86efac' },
-  addQ: { width:'100%', padding:'14px 0', borderRadius:12,
-    border:'2px dashed rgba(124,58,237,0.4)', background:'transparent',
-    color:'#a78bfa', fontWeight:700, cursor:'pointer', fontSize:15, marginTop:4, marginBottom:20 },
-  error: { color:'#f87171', fontSize:13, marginBottom:12, textAlign:'center' },
-  save: { width:'100%', padding:'14px 0', borderRadius:12, border:'none',
-    background:'#7c3aed', color:'#fff', fontWeight:800, cursor:'pointer', fontSize:16 },
-};

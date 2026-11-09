@@ -1,12 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import api from '../services/api';
+import type { AuthPayload, MeResponse, User } from '../types/api';
 
-export interface User {
-  _id: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'organizer' | 'user';
-}
+export type { User };
 
 interface AuthCtx {
   user: User | null;
@@ -27,8 +23,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const stored = localStorage.getItem('accessToken');
     if (stored) {
-      api.get<{ user: User }>('/auth/me')
-        .then(({ user }) => setUser(user))
+      api.get<MeResponse>('/auth/me')
+        .then((data) => {
+          if (!data?.user) throw new Error('Invalid session');
+          setUser(data.user);
+        })
         .catch(() => { localStorage.clear(); setToken(null); })
         .finally(() => setLoading(false));
     } else {
@@ -36,24 +35,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const data = await api.post<{ user: User; accessToken: string; refreshToken: string }>(
-      '/auth/login', { email, password }
-    );
+  const persistSession = (data: AuthPayload | undefined) => {
+    if (!data?.accessToken || !data.refreshToken || !data.user) {
+      throw new Error('Unexpected response from server');
+    }
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     setToken(data.accessToken);
     setUser(data.user);
   };
 
+  const login = async (email: string, password: string) => {
+    const data = await api.post<AuthPayload>('/auth/login', { email, password });
+    persistSession(data);
+  };
+
   const signup = async (email: string, name: string, password: string, role = 'user') => {
-    const data = await api.post<{ user: User; accessToken: string; refreshToken: string }>(
-      '/auth/signup', { email, name, password, role }
-    );
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
-    setToken(data.accessToken);
-    setUser(data.user);
+    const data = await api.post<AuthPayload>('/auth/signup', { email, name, password, role });
+    persistSession(data);
   };
 
   const logout = () => {

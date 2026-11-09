@@ -1,17 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import api from '../services/api';
-
-interface ResultEntry {
-  userId: { _id: string; name: string; email: string } | string;
-  totalScore: number;
-  correctCount: number;
-  questionsAttempted: number;
-}
+import api, { getErrorMessage } from '../services/api';
+import type { QuizResultsPayload, ResultEntry } from '../types/api';
 
 interface Props {
   quizId: string;
   onNavigate: (page: string) => void;
 }
+
+const PODIUM_ORDER = [2, 1, 3]; // visual order for 1st, 2nd, 3rd
 
 export default function ResultsPage({ quizId, onNavigate }: Props) {
   const [results, setResults] = useState<ResultEntry[]>([]);
@@ -19,105 +15,89 @@ export default function ResultsPage({ quizId, onNavigate }: Props) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<{ results: ResultEntry[] }>(`/results/${quizId}`)
-      .then(d => setResults(d.results))
-      .catch(e => setError(e.message))
+    api.get<QuizResultsPayload | undefined>(`/results/${quizId}`)
+      .then(d => setResults(Array.isArray(d?.results) ? d.results : []))
+      .catch(e => setError(getErrorMessage(e, 'Failed to load results')))
       .finally(() => setLoading(false));
   }, [quizId]);
 
-  const medals = ['🥇', '🥈', '🥉'];
   const maxScore = results[0]?.totalScore || 1;
 
-  const getName = (r: ResultEntry) =>
-    typeof r.userId === 'object' ? r.userId.name : `User ${String(r.userId).slice(-4)}`;
+  const getName = (r: ResultEntry) => {
+    if (r.userId && typeof r.userId === 'object') return r.userId.name;
+    if (typeof r.userId === 'string') return `User ${r.userId.slice(-4)}`;
+    return 'Deleted user';
+  };
+
+  const accuracy = (r: ResultEntry) =>
+    r.questionsAttempted > 0 ? Math.round((r.correctCount / r.questionsAttempted) * 100) : 0;
 
   return (
-    <div style={styles.wrap}>
-      <div style={styles.inner}>
-        <div style={styles.topBar}>
-          <button style={styles.back} onClick={() => onNavigate('home')}>← Back</button>
-          <h1 style={styles.title}>Quiz Results</h1>
+    <div className="app">
+      <main className="page page--narrow">
+        <div className="page-head">
+          <button className="btn btn-ghost btn-sm" onClick={() => onNavigate('home')}>← Back</button>
+          <h1 className="page-title">Results</h1>
         </div>
 
-        {loading && <div style={styles.loading}>Loading results…</div>}
-        {error && <div style={styles.error}>{error}</div>}
+        {loading && <div className="state"><div className="spinner" />Loading results…</div>}
+        {!loading && error && <div className="state state--error">{error}</div>}
 
-        {results.length > 0 && (
+        {!loading && !error && results.length > 0 && (
           <>
-            <div style={styles.podium}>
+            <div className="podium">
               {results.slice(0, 3).map((r, i) => (
-                <div key={i} style={{ ...styles.podiumCard, order: i === 0 ? 2 : i === 1 ? 1 : 3 }}>
-                  <div style={styles.podiumMedal}>{medals[i]}</div>
-                  <div style={styles.podiumName}>{getName(r)}</div>
-                  <div style={styles.podiumScore}>{r.totalScore} pts</div>
-                  <div style={styles.podiumAcc}>
-                    {r.questionsAttempted > 0
-                      ? Math.round((r.correctCount / r.questionsAttempted) * 100)
-                      : 0}% accuracy
-                  </div>
+                <div key={r._id ?? i}
+                  className={`card podium-item${i === 0 ? ' is-first' : ''}`}
+                  style={{ order: PODIUM_ORDER[i] }}>
+                  <div className="podium-rank">{i + 1}</div>
+                  <div className="podium-name">{getName(r)}</div>
+                  <div className="podium-score num">{r.totalScore}<span className="muted" style={{ fontSize: 13, fontWeight: 400 }}> pts</span></div>
+                  <div className="podium-acc">{accuracy(r)}% accuracy</div>
                 </div>
               ))}
             </div>
 
-            <h2 style={styles.tableTitle}>All Participants</h2>
-            <div style={styles.table}>
-              {results.map((r, i) => (
-                <div key={i} style={styles.tableRow}>
-                  <span style={styles.tableRank}>{medals[i] || `#${i+1}`}</span>
-                  <span style={styles.tableName}>{getName(r)}</span>
-                  <div style={styles.barWrap}>
-                    <div style={{
-                      ...styles.barFill,
-                      width: `${(r.totalScore / maxScore) * 100}%`,
-                      background: i === 0 ? '#f59e0b' : i === 1 ? '#9ca3af' : i === 2 ? '#cd7f32' : '#7c3aed',
-                    }} />
-                  </div>
-                  <span style={styles.tableScore}>{r.totalScore}</span>
-                  <span style={styles.tableAcc}>
-                    {r.correctCount}/{r.questionsAttempted}
-                  </span>
-                </div>
-              ))}
+            <h2 className="section-title" style={{ marginBottom: 12 }}>All participants</h2>
+            <div className="card table-wrap" style={{ padding: '16px 8px 4px' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th className="col-rank">#</th>
+                    <th>Name</th>
+                    <th className="col-bar" aria-hidden="true" />
+                    <th className="col-num">Score</th>
+                    <th className="col-num">Correct</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.map((r, i) => (
+                    <tr key={r._id ?? i}>
+                      <td className="col-rank num">{i + 1}</td>
+                      <td className="col-name">{getName(r)}</td>
+                      <td className="col-bar">
+                        <div className="bar">
+                          <div className={`bar-fill${i < 3 ? ' is-top' : ''}`}
+                            style={{ width: `${Math.max(0, (r.totalScore / maxScore) * 100)}%` }} />
+                        </div>
+                      </td>
+                      <td className="col-num num" style={{ fontWeight: 600 }}>{r.totalScore}</td>
+                      <td className="col-num num muted">{r.correctCount}/{r.questionsAttempted}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </>
         )}
 
-        {!loading && results.length === 0 && (
-          <div style={styles.empty}>No results recorded yet for this quiz.</div>
+        {!loading && !error && results.length === 0 && (
+          <div className="state">
+            <div className="state-title">No results yet</div>
+            No results have been recorded for this quiz.
+          </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  wrap: { minHeight:'100vh', background:'#0f0f1a', color:'#f1f5f9' },
-  inner: { maxWidth:760, margin:'0 auto', padding:'32px 24px' },
-  topBar: { display:'flex', alignItems:'center', gap:16, marginBottom:32 },
-  back: { background:'transparent', border:'1px solid rgba(255,255,255,0.15)',
-    color:'#94a3b8', padding:'8px 16px', borderRadius:8, cursor:'pointer', fontSize:13 },
-  title: { fontSize:26, fontWeight:800, margin:0, letterSpacing:-1 },
-  loading: { textAlign:'center', color:'#64748b', padding:40 },
-  error: { color:'#f87171', textAlign:'center' },
-  podium: { display:'flex', justifyContent:'center', gap:16, marginBottom:40, alignItems:'flex-end' },
-  podiumCard: { background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)',
-    borderRadius:14, padding:'20px 24px', textAlign:'center', minWidth:140 },
-  podiumMedal: { fontSize:36, marginBottom:8 },
-  podiumName: { fontWeight:700, fontSize:15, marginBottom:4 },
-  podiumScore: { fontSize:22, fontWeight:800, color:'#a78bfa', marginBottom:4 },
-  podiumAcc: { fontSize:12, color:'#64748b' },
-  tableTitle: { fontSize:16, fontWeight:700, color:'#94a3b8', marginBottom:14,
-    textTransform:'uppercase', letterSpacing:.5 },
-  table: { display:'flex', flexDirection:'column', gap:8 },
-  tableRow: { display:'flex', alignItems:'center', gap:12, padding:'10px 16px',
-    background:'rgba(255,255,255,0.03)', borderRadius:10,
-    border:'1px solid rgba(255,255,255,0.06)' },
-  tableRank: { width:32, textAlign:'center', fontSize:16 },
-  tableName: { width:140, fontSize:14, fontWeight:600, overflow:'hidden',
-    textOverflow:'ellipsis', whiteSpace:'nowrap' },
-  barWrap: { flex:1, height:8, borderRadius:4, background:'rgba(255,255,255,0.08)', overflow:'hidden' },
-  barFill: { height:'100%', borderRadius:4, transition:'width .5s ease' },
-  tableScore: { width:60, textAlign:'right', fontWeight:700, color:'#a78bfa' },
-  tableAcc: { width:50, textAlign:'right', fontSize:12, color:'#64748b' },
-  empty: { textAlign:'center', color:'#475569', padding:60 },
-};
